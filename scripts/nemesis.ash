@@ -34,6 +34,7 @@ setvar( "nemesis_farm_outfit", "");
 setvar( "nemesis_farm_mood", "");
 setvar( "nemesis_farm_CCS", "");
 setvar( "nemesis_autobuy_LTS", "");
+setvar( "nemesis_diet", "autosea diet" );	// eats and drinks for more adventures when they run out mid-quest ("" to stop instead)
 
 if ( my_class() == $class[ Seal Clubber ] && !have_skill( $skill[ Lunging Thrust-Smack ] ) )
 {
@@ -2736,6 +2737,64 @@ ULEWs[ $class[ Disco Bandit ] ] 	= "Seeger's Unstoppable Banjo" ;
 ULEWs[ $class[ Accordion Thief ] ] 	= "The Trickster's Trikitixa" ;
 item ULEW = ULEWs[ my_class() ].to_item();
 
+// Out of adventures: eat and drink for more (nemesis_diet, autosea's by default) rather than stop.
+// Returns true when that gave more adventures, so the step can be tried again.
+boolean refuel()
+{
+	if ( my_adventures() > 0 ) return false;
+	string cmd = vars[ "nemesis_diet" ];
+	if ( cmd == "" ) return false;
+	if ( cmd.to_lower_case().starts_with( "autosea" ) && !git_exists( "grimwiz-autosea" ) ) return false;
+	cli_execute( cmd );
+	return my_adventures() > 0;
+}
+
+boolean obtain_fed( item it, location loc )
+{
+	while ( item_amount( it ) == 0 )
+	{
+		if ( !obtain( 1, it.to_string(), loc ) && !refuel() ) return false;
+	}
+	return true;
+}
+
+// The class's Legendary Regalia tattoo. Some of its pieces are quest items lost at the next ascension, so this is
+// the only chance this run. The Pretentious Artist only gives tattoos once his own quest is done this ascension.
+boolean get_regalia_tattoo()
+{
+	string [ class ] regalias;
+	regalias[ $class[ Seal Clubber ] ]		= "Legendary Regalia of the Seal Crusher";
+	regalias[ $class[ Turtle Tamer ] ]		= "Legendary Regalia of the Chelonian Overlord";
+	regalias[ $class[ Pastamancer ] ]		= "Legendary Regalia of the Pasta Master";
+	regalias[ $class[ Sauceror ] ]			= "Legendary Regalia of the Saucemaestro";
+	regalias[ $class[ Disco Bandit ] ]		= "Legendary Regalia of the Groovelord";
+	regalias[ $class[ Accordion Thief ] ]	= "Legendary Regalia of the Master Squeezeboxer";
+	if ( !( regalias contains my_class() ) ) return true;
+	string regalia = regalias[ my_class() ];
+	string gif = "/revclass" + my_class().to_int() + ".gif";
+	if ( visit_url( "account_tattoos.php" ).contains_text( gif ) ) return vprint( "You already have the " + regalia + " tattoo.", 6 );
+	if ( !have_outfit( regalia ) ) return vprint( "You don't have all of the " + regalia + ", so there's no tattoo to collect.", -1 );
+
+	if ( get_property( "questM02Artist" ) == "unstarted" )
+		visit_url( "place.php?whichplace=town_wrong&action=townwrong_artist_noquest" );
+	if ( get_property( "questM02Artist" ) != "finished" )
+	{
+		vprint( "Doing the Pretentious Artist's quest, so he'll give you the " + regalia + " tattoo.", "green", 1 );
+		location [ item ] tools;
+		tools[ $item[ pail of pretentious paint ] ] = $location[ The Sleazy Back Alley ];
+		tools[ $item[ pretentious palette ] ] = $location[ The Haunted Pantry ];
+		tools[ $item[ pretentious paintbrush ] ] = $location[ The Outskirts of Cobb's Knob ];
+		foreach it, loc in tools
+			if ( !obtain_fed( it, loc ) ) return vprint( "Couldn't find the " + it + " for the Pretentious Artist.", -1 );
+		visit_url( "place.php?whichplace=town_wrong&action=townwrong_artist_quest" );
+		if ( get_property( "questM02Artist" ) != "finished" ) return vprint( "The Pretentious Artist didn't take his tools back.", -1 );
+	}
+	outfit( regalia );
+	visit_url( "place.php?whichplace=town_wrong&action=townwrong_artist_quest" );
+	if ( !visit_url( "account_tattoos.php" ).contains_text( gif ) ) return vprint( "The Pretentious Artist didn't give you the " + regalia + " tattoo.", -1 );
+	return vprint( "You have the " + regalia + " tattoo.", "green", 1 );
+}
+
 void nemesisQuest()
 {
 	//if ( available_amount( ULEW ) > 0 ) { vprint( "Nemesis quest already done!", "green", 1 ); exit; } 
@@ -2747,32 +2806,42 @@ void nemesisQuest()
 		set_property( "nemesis_lastReset", get_property( "knownAscensions" ) );
 	}
 	int step = get_property("nemesis_Step").to_int();
+	if ( get_property( "questG04Nemesis" ) == "finished" )
+	{
+		get_regalia_tattoo();
+		return;
+	}
 	// go through the steps
 	if ( step == 0 ) // LEW quest
 	{
-		if ( !get_LEW() ) die( "Problem occured while acquiring the LEW, exiting...");
+		while ( !get_LEW() ) if ( !refuel() ) die( "Problem occured while acquiring the LEW, exiting...");
 		step = 1; set_property( "nemesis_Step", "1" );
 	}
 	if ( step == 1 ) // Nemesis Cave
 	{
 		startCaveQuest();
-		if ( !newcave() ) die( "Problem occured while doing the Nemesis Cave, exiting..." );
+		while ( !newcave() ) if ( !refuel() ) die( "Problem occured while doing the Nemesis Cave, exiting..." );
 		step = 2; set_property( "nemesis_Step", "2" );
 	}
 	if ( step == 2 ) // Open the Volcano island
 	{
-		if ( !openVolcanoIsland() ) die( "Problem occured while opening the Volcano island, exiting...");
+		while ( !openVolcanoIsland() ) if ( !refuel() ) die( "Problem occured while opening the Volcano island, exiting...");
 		step = 3; set_property( "nemesis_Step", "3" );
 	}
 	if ( step == 3 ) // Unlock the Nemesis Lair
 	{
-		if ( !openLair() ) die( "Problem occured while opening the Nemesis Lair, exiting...");
+		while ( !openLair() ) if ( !refuel() ) die( "Problem occured while opening the Nemesis Lair, exiting...");
 		step = 4; set_property( "nemesis_Step", "4" );
 	}
 	if ( step == 4 ) // Nemesis Lair and Volcano Maze
 	{
-		if ( !nemesisLair() ) die( "Problem occured while going through the Nemesis Lair, exiting...");
+		while ( !nemesisLair() ) if ( !refuel() ) die( "Problem occured while going through the Nemesis Lair, exiting...");
 		step = 5; set_property( "nemesis_Step", "5" );
+	}
+	if ( get_property( "questG04Nemesis" ) == "finished" )	// the Lair ends with the final fight
+	{
+		get_regalia_tattoo();
+		return;
 	}
 	if ( step == 5 ) // Nemesis Fight
 	{

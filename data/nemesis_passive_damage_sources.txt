@@ -1,0 +1,44 @@
+acid-squirting flower	gear
+ant hoe	gear
+ant pick	gear
+ant pitchfork	gear
+ant rake	gear
+ant sickle	gear
+balloon shield	gear
+Biologically Shocked	effect
+Bone Homie	effect
+bottle opener belt buckle	gear
+Burning, Man	effect
+cannonball charrrm bracelet	gear
+cup of infinite pencils	gear
+Curse of the Black Pearl Onion	effect
+double-ice box	gear
+Drenched With Filth	effect
+eelskin hat	gear
+eelskin pants	gear
+eelskin shield	gear
+elephant stinger	gear
+fishy wand	gear
+groovy prism necklace	gear
+Hand in Glove	gear
+hippy protest button	gear
+ironic oversized sunglasses	gear
+It's Electric!	effect
+Jaba&ntilde;ero Saucesphere	effect
+Jalape&ntilde;o Saucesphere	effect
+MagiMechTech NanoMechaMech	gear
+moveable feast	gear
+Ol' Scratch's stove door	gear
+Oscus's garbage can lid	gear
+oversized fish scaler	gear
+parasitic headgnawer	gear
+plastic pumpkin bucket	gear
+Psalm of Pointiness	effect
+Scarysauce	effect
+scorpion whip	gear
+Smokin'	effect
+spiky turtle shoulderpads	gear
+stapler bear	gear
+Stuck-Up Hair	effect
+trout fang	gear
+Zombo's skull ring	gear

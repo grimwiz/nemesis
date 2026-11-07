@@ -146,7 +146,8 @@ boolean does_damage( item it )
 				 Ittah bittah hookah,
 				 Tiny costume wardrobe,
 				 Oversized fish scaler,
-				 Fishy wand ] contains it )
+				 Fishy wand,
+				 Filthy child leash ] contains it )
 		return true;
 	for i from 2570 to 2574
 		if ( i.to_item() == it )

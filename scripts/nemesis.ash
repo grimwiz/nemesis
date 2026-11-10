@@ -2742,7 +2742,7 @@ item ULEW = ULEWs[ my_class() ].to_item();
 boolean refuel()
 {
 	if ( my_adventures() > 0 ) return false;
-	string cmd = vars[ "nemesis_diet" ];
+	string cmd = getvar( "nemesis_diet" );	// vars[] only holds settings you have changed
 	if ( cmd == "" ) return false;
 	if ( cmd.to_lower_case().starts_with( "autosea" ) && !git_exists( "grimwiz-autosea" ) ) return false;
 	cli_execute( cmd );

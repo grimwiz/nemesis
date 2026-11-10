@@ -22,6 +22,8 @@ If you installed the SVN version, remove it first with `svn delete slyz-nemesis`
 - Once the quest is done, it collects your class's Legendary Regalia tattoo while the pieces still exist (some are
   quest items lost at the next ascension). If the Pretentious Artist's quest isn't done this ascension it does that
   first: the paint from the Sleazy Back Alley, the palette from the Haunted Pantry, the paintbrush from the Outskirts of
-  Cobb's Knob. Running `nemesis` again after the quest is finished just does this step.
+  Cobb's Knob. Running `nemesis.ash` again after the quest is finished just does this step.
+
+Run it as `nemesis.ash`: plain `nemesis` does nothing in KoLmafia.
 
 Instructions for the script itself: http://kolmafia.us/showthread.php?4761

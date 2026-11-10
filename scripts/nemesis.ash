@@ -2720,26 +2720,36 @@ boolean nemesisLair()
 	return vprint( "Mafia finished trying to solve the Maze. If it didn't, try swimming back to shore and using the 'Solve' button in the Relay Browser.", "green", 1 );
 }
 
-// The Spaghetti Demon's special attack (200 damage a round) is stopped while it is entangled, and it can be entangled
-// again and again: cast Entangling Noodles until the noodles are reinforced, then one damaging round, and repeat.
-// It has 600 HP and resists 40% of physical and elemental damage, so this takes a dozen or so rounds.
-int demon_noodles;	// noodle casts since the last damaging round
-string noodle_the_demon( int round, monster foe, string page )
+// The Spaghetti Demon's special attack (200-325 damage) is stopped while it is entangled, and it can be entangled again
+// and again, but it takes two casts of Entangling Noodles: so two casts, then one damaging round, and repeat. It has
+// 600 HP and resists 40% of physical and elemental damage. KoLmafia allows only one cast of Entangling Noodles a fight
+// (it skips the round), so the rounds are submitted to fight.php directly.
+string noodle_the_demon( string page )
 {
 	skill noodles = $skill[ Entangling Noodles ];
-	boolean reinforced = page.contains_text( "reinforc" );
-	if ( my_mp() >= mp_cost( noodles ) && ( demon_noodles == 0 || ( demon_noodles == 1 && !reinforced ) ) )
+	int noodled = 0;
+	for round from 1 to 40
 	{
-		demon_noodles += 1;
-		return "skill " + noodles;
+		if ( page.contains_text( "WINWINWIN" ) || !page.contains_text( "fight.php" ) ) break;
+		skill sk = $skill[ none ];
+		if ( noodled < 2 && my_mp() >= mp_cost( noodles ) )
+		{
+			sk = noodles;
+			noodled += 1;
+		}
+		else
+		{
+			noodled = 0;
+			// heal while it's held, if one more special attack would kill you
+			if ( my_hp() <= 350 && have_skill( $skill[ Lasagna Bandages ] ) && my_mp() >= mp_cost( $skill[ Lasagna Bandages ] ) + 2 * mp_cost( noodles ) )
+				sk = $skill[ Lasagna Bandages ];
+			else foreach it in $skills[ Weapon of the Pastalord, Saucegeyser, Cannelloni Cannon, Saucestorm, Ravioli Shurikens ]
+				if ( sk == $skill[ none ] && have_skill( it ) && my_mp() >= mp_cost( it ) + 2 * mp_cost( noodles ) ) sk = it;
+		}
+		vprint( "Round " + round + ": " + ( sk == $skill[ none ] ? "attack" : sk.to_string() ), 3 );
+		page = visit_url( sk == $skill[ none ] ? "fight.php?action=attack" : "fight.php?action=skill&whichskill=" + sk.to_int() );
 	}
-	demon_noodles = 0;
-	// heal while it's held, if one more special attack would kill you
-	if ( my_hp() <= 250 && have_skill( $skill[ Lasagna Bandages ] ) && my_mp() >= mp_cost( $skill[ Lasagna Bandages ] ) + mp_cost( noodles ) )
-		return "skill Lasagna Bandages";
-	foreach sk in $skills[ Weapon of the Pastalord, Saucegeyser, Cannelloni Cannon, Saucestorm, Ravioli Shurikens ]
-		if ( have_skill( sk ) && my_mp() >= mp_cost( sk ) + mp_cost( noodles ) ) return "skill " + sk;
-	return "attack";
+	return page;
 }
 
 // Step onto the centre of the Volcano Maze and fight your Nemesis: the elemental, then (after "Flying In Circles")
@@ -2747,35 +2757,43 @@ string noodle_the_demon( int round, monster foe, string page )
 boolean nemesisFight()
 {
 	if ( get_property( "questG04Nemesis" ) == "finished" ) return true;
-	if ( my_adventures() == 0 ) return vprint( "Out of adventures.",-1 );
-	restore_settings( false );
-	if ( have_effect( $effect[ Beaten Up ] ) > 0 ) cli_execute( "uneffect beaten up" );
-
-	// The demons hit hard and every round: what keeps you alive is HP, and Moxie against its ordinary attacks.
-	string command = "2 hp, moxie";
-	switch ( my_class() )
+	string page;
+	if ( current_round() > 0 )	// a fight left unfinished (an abort): carry on with it, no gear changes mid-fight
 	{
-		case $class[ Pastamancer ]:
-		case $class[ Sauceror ]: command += ", 0.5 spell damage percent"; break;
-		default: command += ", 0.5 " + my_primestat(); break;
+		page = visit_url( "fight.php" );
 	}
-	command += ", -ML, -weapon, -familiar, -tie";
-	maximize( command, false );
-	equip( LEW );
-	restore_hp( my_maxhp() );
-	restore_mp( min( my_maxmp(), 400 ) );
-	vprint( "Fighting your Nemesis with " + my_hp() + " HP and " + my_mp() + " MP.", "green", 1 );
-
-	// back to the maze, and next to its centre
-	string page = visit_url( "volcanoisland.php?action=tniat" );
-	if ( page.contains_text( "fiendish final puzzle" ) || page.contains_text( "volcanomaze" ) )
+	else
 	{
-		while ( !cli_execute( "volcano visit; volcano solve" ) )
+		if ( my_adventures() == 0 ) return vprint( "Out of adventures.",-1 );
+		restore_settings( false );
+		if ( have_effect( $effect[ Beaten Up ] ) > 0 ) cli_execute( "uneffect beaten up" );
+
+		// The demons hit hard and every round: what keeps you alive is HP, and Moxie against its ordinary attacks.
+		string command = "2 hp, moxie";
+		switch ( my_class() )
 		{
-			vprint( "Swimming back to shore...", "red", 1 );
-			cli_execute( "volcano jump" );
+			case $class[ Pastamancer ]:
+			case $class[ Sauceror ]: command += ", 0.5 spell damage percent"; break;
+			default: command += ", 0.5 " + my_primestat(); break;
 		}
-		page = visit_url( "volcanomaze.php?move=6,6&ajax=1" );
+		command += ", -ML, -weapon, -familiar, -tie";
+		maximize( command, false );
+		equip( LEW );
+		restore_hp( my_maxhp() );
+		restore_mp( min( my_maxmp(), 400 ) );
+		vprint( "Fighting your Nemesis with " + my_hp() + " HP and " + my_mp() + " MP.", "green", 1 );
+
+		// back to the maze, and next to its centre
+		page = visit_url( "volcanoisland.php?action=tniat" );
+		if ( page.contains_text( "fiendish final puzzle" ) || page.contains_text( "volcanomaze" ) )
+		{
+			while ( !cli_execute( "volcano visit; volcano solve" ) )
+			{
+				vprint( "Swimming back to shore...", "red", 1 );
+				cli_execute( "volcano jump" );
+			}
+			page = visit_url( "volcanomaze.php?move=6,6&ajax=1" );
+		}
 	}
 	for i from 1 to 4	// the elemental, Flying In Circles, the demon
 	{
@@ -2783,9 +2801,8 @@ boolean nemesisFight()
 		if ( handling_choice() ) page = run_choice( 1 );
 		else if ( current_round() > 0 || page.contains_text( "fight.php" ) )
 		{
-			demon_noodles = 0;
 			if ( my_class() == $class[ Pastamancer ] && last_monster() == $monster[ Spaghetti Demon ] )
-				page = run_combat( "noodle_the_demon" );
+				page = noodle_the_demon( page.contains_text( "fight.php" ) ? page : visit_url( "fight.php" ) );
 			else page = run_combat();
 		}
 		else break;

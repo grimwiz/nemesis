@@ -2720,6 +2720,84 @@ boolean nemesisLair()
 	return vprint( "Mafia finished trying to solve the Maze. If it didn't, try swimming back to shore and using the 'Solve' button in the Relay Browser.", "green", 1 );
 }
 
+// The Spaghetti Demon's special attack (200 damage a round) is stopped while it is entangled, and it can be entangled
+// again and again: cast Entangling Noodles until the noodles are reinforced, then one damaging round, and repeat.
+// It has 600 HP and resists 40% of physical and elemental damage, so this takes a dozen or so rounds.
+int demon_noodles;	// noodle casts since the last damaging round
+string noodle_the_demon( int round, monster foe, string page )
+{
+	skill noodles = $skill[ Entangling Noodles ];
+	boolean reinforced = page.contains_text( "reinforc" );
+	if ( my_mp() >= mp_cost( noodles ) && ( demon_noodles == 0 || ( demon_noodles == 1 && !reinforced ) ) )
+	{
+		demon_noodles += 1;
+		return "skill " + noodles;
+	}
+	demon_noodles = 0;
+	// heal while it's held, if one more special attack would kill you
+	if ( my_hp() <= 250 && have_skill( $skill[ Lasagna Bandages ] ) && my_mp() >= mp_cost( $skill[ Lasagna Bandages ] ) + mp_cost( noodles ) )
+		return "skill Lasagna Bandages";
+	foreach sk in $skills[ Weapon of the Pastalord, Saucegeyser, Cannelloni Cannon, Saucestorm, Ravioli Shurikens ]
+		if ( have_skill( sk ) && my_mp() >= mp_cost( sk ) + mp_cost( noodles ) ) return "skill " + sk;
+	return "attack";
+}
+
+// Step onto the centre of the Volcano Maze and fight your Nemesis: the elemental, then (after "Flying In Circles")
+// the demon. If you lost to the demon earlier, the elemental stays beaten and it's the demon again.
+boolean nemesisFight()
+{
+	if ( get_property( "questG04Nemesis" ) == "finished" ) return true;
+	if ( my_adventures() == 0 ) return vprint( "Out of adventures.",-1 );
+	restore_settings( false );
+	if ( have_effect( $effect[ Beaten Up ] ) > 0 ) cli_execute( "uneffect beaten up" );
+
+	// The demons hit hard and every round: what keeps you alive is HP, and Moxie against its ordinary attacks.
+	string command = "2 hp, moxie";
+	switch ( my_class() )
+	{
+		case $class[ Pastamancer ]:
+		case $class[ Sauceror ]: command += ", 0.5 spell damage percent"; break;
+		default: command += ", 0.5 " + my_primestat(); break;
+	}
+	command += ", -ML, -weapon, -familiar, -tie";
+	maximize( command, false );
+	equip( LEW );
+	restore_hp( my_maxhp() );
+	restore_mp( min( my_maxmp(), 400 ) );
+	vprint( "Fighting your Nemesis with " + my_hp() + " HP and " + my_mp() + " MP.", "green", 1 );
+
+	// back to the maze, and next to its centre
+	string page = visit_url( "volcanoisland.php?action=tniat" );
+	if ( page.contains_text( "fiendish final puzzle" ) || page.contains_text( "volcanomaze" ) )
+	{
+		while ( !cli_execute( "volcano visit; volcano solve" ) )
+		{
+			vprint( "Swimming back to shore...", "red", 1 );
+			cli_execute( "volcano jump" );
+		}
+		page = visit_url( "volcanomaze.php?move=6,6&ajax=1" );
+	}
+	for i from 1 to 4	// the elemental, Flying In Circles, the demon
+	{
+		if ( !handling_choice() && choice_follows_fight() ) page = visit_url( "choice.php" );
+		if ( handling_choice() ) page = run_choice( 1 );
+		else if ( current_round() > 0 || page.contains_text( "fight.php" ) )
+		{
+			demon_noodles = 0;
+			if ( my_class() == $class[ Pastamancer ] && last_monster() == $monster[ Spaghetti Demon ] )
+				page = run_combat( "noodle_the_demon" );
+			else page = run_combat();
+		}
+		else break;
+		if ( get_property( "questG04Nemesis" ) == "finished" ) break;
+	}
+	if ( get_property( "questG04Nemesis" ) == "finished" )
+		return vprint( "You defeated your Nemesis! Don't forget to visit your guild.", "green", 1 );
+	if ( have_effect( $effect[ Beaten Up ] ) > 0 )
+		return vprint( "Your Nemesis beat you. More HP (and Moxie) would help; run the script again when you're ready.", -1 );
+	return vprint( "Couldn't reach your Nemesis at the centre of the Volcano Maze.", -1 );
+}
+
 
 #/*****************************************************************************************\#
 #																							#
@@ -2845,9 +2923,9 @@ void nemesisQuest()
 	}
 	if ( step == 5 ) // Nemesis Fight
 	{
-		vprint( "Your Nemesis is waiting for you!","green",1 );
-		vprint( "Don't forget to visit your guild after you kill him.","green",1 );
-		die( "exiting...");
+		while ( !nemesisFight() ) if ( !refuel() ) die( "Problem occured while fighting your Nemesis, exiting..." );
+		get_regalia_tattoo();
+		return;
 	}
 	die( "Reached the end of the script, exiting..." );
 }

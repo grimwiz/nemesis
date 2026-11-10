@@ -19,6 +19,12 @@ If you installed the SVN version, remove it first with `svn delete slyz-nemesis`
 - Out of adventures mid-quest, it eats and drinks for more and carries on: `nemesis_diet` (default `autosea diet`, used
   only if [autosea](https://github.com/grimwiz/autosea) is installed; set it to another command, or to nothing to
   stop as before).
+- It fights your Nemesis instead of stopping at the solved Volcano Maze. Before the fight it gears for HP and Moxie
+  (plus spell damage for Pastamancers and Saucerors, or your main stat otherwise), keeps your Legendary Epic Weapon on,
+  and restores HP and MP. A Pastamancer's Spaghetti Demon only uses its 200-damage special attack when it isn't
+  entangled, so it casts Entangling Noodles until they're reinforced, then makes one attack, and repeats; it heals with
+  Lasagna Bandages below 250 HP. The other classes' demons are fought with your own combat settings. If you lose, run
+  it again: the demon is still waiting at the centre of the maze.
 - Once the quest is done, it collects your class's Legendary Regalia tattoo while the pieces still exist (some are
   quest items lost at the next ascension). If the Pretentious Artist's quest isn't done this ascension it does that
   first: the paint from the Sleazy Back Alley, the palette from the Haunted Pantry, the paintbrush from the Outskirts of

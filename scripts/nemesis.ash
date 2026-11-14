@@ -2835,8 +2835,10 @@ string step_to_goal()
 			}
 			continue;
 		}
-		page = visit_url( "volcanomaze.php?move=" + spot[ "goal x" ] + "," + spot[ "goal y" ] + "&ajax=1" );
-		fight_diag( "Volcano Maze goal hop", page );
+		// without pwd the game ignores the hop and just shows the maze again
+		page = visit_url( "volcanomaze.php?pwd&move=" + spot[ "goal x" ] + "," + spot[ "goal y" ] + "&ajax=1" );
+		int [string] after = maze_spots( page );
+		fight_diag( "Volcano Maze goal hop (page shows you at " + after[ "you x" ] + "," + after[ "you y" ] + ")", page );
 		if ( current_round() == 0 && !handling_choice() ) page = visit_url( "fight.php" );
 		fight_diag( "Volcano Maze goal, fight.php", page );
 		if ( current_round() > 0 || handling_choice() ) return page;

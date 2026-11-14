@@ -29,7 +29,7 @@ If you installed the SVN version, remove it first with `svn delete slyz-nemesis`
 - Once the quest is done, it collects your class's Legendary Regalia tattoo while the pieces still exist (some are
   quest items lost at the next ascension). If the Pretentious Artist's quest isn't done this ascension it does that
   first: the paint from the Sleazy Back Alley, the palette from the Haunted Pantry, the paintbrush from the Outskirts of
-  Cobb's Knob. Running `nemesis.ash` again after the quest is finished just does this step.
+  Cobb's Knob, giving up on a tool after 40 turns. Running `nemesis.ash` again after the quest is finished just does this step.
 - At the Nemesis' Lair it prints what KoLmafia sees before and after each fight (`[nemesis]` lines), retries a fight
   that KoLmafia didn't pick up through fight.php, and stops after three fights in a row that spend no turn, instead of
   asking for the same fight over and over.

@@ -2942,12 +2942,19 @@ boolean refuel()
 	return my_adventures() > 0;
 }
 
+// Adventures in loc until it turns up, eating and drinking for more adventures when they run out. Gives up after
+// 40 turns: the artist's tools only turn up while his quest is running, and in run 107 the paintbrush hunt ran for
+// 241 turns because it wasn't.
 boolean obtain_fed( item it, location loc )
 {
+	int start = my_turncount();
 	while ( item_amount( it ) == 0 )
 	{
-		if ( !obtain( 1, it.to_string(), loc ) && !refuel() ) return false;
+		if ( my_turncount() - start >= 40 ) return vprint( "40 turns in " + loc + " turned up no " + it + ", stopping.", -1 );
+		if ( my_adventures() == 0 && !refuel() ) return false;
+		adv1( loc, -1, "" );
 	}
+	print( "[nemesis] " + it + " found in " + loc + " after " + ( my_turncount() - start ) + " turns", "blue" );
 	return true;
 }
 
@@ -2968,8 +2975,12 @@ boolean get_regalia_tattoo()
 	if ( visit_url( "account_tattoos.php" ).contains_text( gif ) ) return vprint( "You already have the " + regalia + " tattoo.", 6 );
 	if ( !have_outfit( regalia ) ) return vprint( "You don't have all of the " + regalia + ", so there's no tattoo to collect.", -1 );
 
+	// his quest starts with the "Sure, I'm always glad to support the arts" button (getquest=1), not by visiting him
 	if ( get_property( "questM02Artist" ) == "unstarted" )
-		visit_url( "place.php?whichplace=town_wrong&action=townwrong_artist_noquest" );
+		visit_url( "place.php?whichplace=town_wrong&action=townwrong_artist_noquest&getquest=1" );
+	print( "[nemesis] Pretentious Artist's quest: " + get_property( "questM02Artist" ), "blue" );
+	if ( get_property( "questM02Artist" ) == "unstarted" )
+		return vprint( "The Pretentious Artist didn't give you his quest, so his tools can't be found; stopping.", -1 );
 	if ( get_property( "questM02Artist" ) != "finished" )
 	{
 		vprint( "Doing the Pretentious Artist's quest, so he'll give you the " + regalia + " tattoo.", "green", 1 );

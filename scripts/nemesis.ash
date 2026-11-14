@@ -2835,12 +2835,13 @@ string step_to_goal()
 			}
 			continue;
 		}
-		// without pwd the game ignores the hop and just shows the maze again
-		page = visit_url( "volcanomaze.php?pwd&move=" + spot[ "goal x" ] + "," + spot[ "goal y" ] + "&ajax=1" );
-		int [string] after = maze_spots( page );
-		fight_diag( "Volcano Maze goal hop (page shows you at " + after[ "you x" ] + "," + after[ "you y" ] + ")", page );
-		if ( current_round() == 0 && !handling_choice() ) page = visit_url( "fight.php" );
-		fight_diag( "Volcano Maze goal, fight.php", page );
+		// The game turns the hop down ("A niggling voice...") unless your Legendary Epic Weapon is in your hand.
+		// KoLmafia's own move says so, where a plain page visit just gets the maze back (run 107).
+		if ( equipped_item( $slot[ weapon ] ) != LEW ) equip( $slot[ weapon ], LEW );
+		print( "[nemesis] hopping onto the goal holding " + equipped_item( $slot[ weapon ] ) + " (Legendary Epic Weapon: " + LEW + ")", "blue" );
+		boolean hopped = cli_execute( "volcano move " + spot[ "goal x" ] + " " + spot[ "goal y" ] );
+		page = visit_url( "fight.php" );
+		fight_diag( "Volcano Maze goal hop (" + ( hopped ? "accepted" : "refused" ) + "), fight.php", page );
 		if ( current_round() > 0 || handling_choice() ) return page;
 	}
 	return page;

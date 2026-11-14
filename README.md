@@ -33,6 +33,8 @@ If you installed the SVN version, remove it first with `svn delete slyz-nemesis`
 - At the Nemesis' Lair it prints what KoLmafia sees before and after each fight (`[nemesis]` lines), retries a fight
   that KoLmafia didn't pick up through fight.php, and stops after three fights in a row that spend no turn, instead of
   asking for the same fight over and over.
+- In the Volcano Maze it hops onto the goal from where `volcano solve` leaves you, rather than solving again (which
+  can hop away from it), and goes back into the lair between your Nemesis's two forms.
 
 Run it as `nemesis.ash`: plain `nemesis` does nothing in KoLmafia.
 

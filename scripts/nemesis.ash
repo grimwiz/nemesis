@@ -2625,8 +2625,8 @@ void fight_diag( string when, string page )
 		+ ( page.contains_text( "choice.php" ) ? ", choice" : "" ), "blue" );
 }
 
-// Fights the fight that page started. False once three fights in a row have spent no turn.
-boolean fight_here( string where, string page )
+// Fights the fight that page started, with a second try through fight.php if run_combat() didn't take it up.
+string fight_through( string where, string page )
 {
 	int turns = my_turncount();
 	fight_diag( where + ", before", page );
@@ -2642,6 +2642,14 @@ boolean fight_here( string where, string page )
 			fight_diag( where + ", after second run_combat", page );
 		}
 	}
+	return page;
+}
+
+// Fights the fight that page started. False once three fights in a row have spent no turn.
+boolean fight_here( string where, string page )
+{
+	int turns = my_turncount();
+	page = fight_through( where, page );
 	if ( my_turncount() > turns || page.contains_text( "WINWINWIN" ) ) stalled_fights = 0;
 	else stalled_fights += 1;
 	return stalled_fights < 3;
@@ -2790,6 +2798,52 @@ string noodle_the_demon( string page )
 	return page;
 }
 
+// Where you are in the Volcano Maze and where its goal is, read from the maze page; -1 for what it doesn't show.
+int [string] maze_spots( string page )
+{
+	int [string] spot;
+	foreach key in $strings[ you x, you y, goal x, goal y ] spot[ key ] = -1;
+	matcher m = create_matcher( "class=\"sq (?:no|yes)\\s+(you|goal)\\s*lv\\d+\" rel=\"(\\d+),(\\d+)\"", page );
+	while ( m.find() )
+	{
+		spot[ m.group( 1 ) + " x" ] = m.group( 2 ).to_int();
+		spot[ m.group( 1 ) + " y" ] = m.group( 3 ).to_int();
+	}
+	return spot;
+}
+
+// KoLmafia's "volcano solve" stops on a square next to the goal and leaves the last hop to you. Solving again from
+// there can hop away and leave you somewhere the goal can't be reached from (run 107), so solve only when you aren't
+// next to it, then hop onto it and load the fight that starts.
+string step_to_goal()
+{
+	string page;
+	for attempt from 1 to 3
+	{
+		int [string] spot = maze_spots( visit_url( "volcanomaze.php?start=1" ) );
+		int dx = spot[ "you x" ] - spot[ "goal x" ];
+		int dy = spot[ "you y" ] - spot[ "goal y" ];
+		boolean next_to = spot[ "you x" ] >= 0 && spot[ "goal x" ] >= 0 && dx * dx <= 1 && dy * dy <= 1;
+		print( "[nemesis] Volcano Maze, try " + attempt + ": you at " + spot[ "you x" ] + "," + spot[ "you y" ] + ", goal at "
+			+ spot[ "goal x" ] + "," + spot[ "goal y" ] + ( next_to ? ", next to it" : "" ), "blue" );
+		if ( !next_to )
+		{
+			if ( !cli_execute( "volcano solve" ) )
+			{
+				vprint( "Swimming back to shore...", "red", 1 );
+				cli_execute( "volcano jump" );
+			}
+			continue;
+		}
+		page = visit_url( "volcanomaze.php?move=" + spot[ "goal x" ] + "," + spot[ "goal y" ] + "&ajax=1" );
+		fight_diag( "Volcano Maze goal hop", page );
+		if ( current_round() == 0 && !handling_choice() ) page = visit_url( "fight.php" );
+		fight_diag( "Volcano Maze goal, fight.php", page );
+		if ( current_round() > 0 || handling_choice() ) return page;
+	}
+	return page;
+}
+
 // Step onto the centre of the Volcano Maze and fight your Nemesis: the elemental, then (after "Flying In Circles")
 // the demon. If you lost to the demon earlier, the elemental stays beaten and it's the demon again.
 boolean nemesisFight()
@@ -2823,28 +2877,31 @@ boolean nemesisFight()
 
 		// back to the maze, and next to its centre
 		page = visit_url( "volcanoisland.php?action=tniat" );
-		if ( page.contains_text( "fiendish final puzzle" ) || page.contains_text( "volcanomaze" ) )
-		{
-			while ( !cli_execute( "volcano visit; volcano solve" ) )
-			{
-				vprint( "Swimming back to shore...", "red", 1 );
-				cli_execute( "volcano jump" );
-			}
-			page = visit_url( "volcanomaze.php?move=6,6&ajax=1" );
-		}
+		if ( page.contains_text( "fiendish final puzzle" ) || page.contains_text( "volcanomaze" ) ) page = step_to_goal();
 	}
-	for i from 1 to 4	// the elemental, Flying In Circles, the demon
+	// The elemental, then Flying In Circles and the demon. In run 106 the choice came from going back into the lair
+	// after beating the elemental, so when there's no fight or choice to carry on with, go back in (twice at most).
+	int reentries = 0;
+	for i from 1 to 8
 	{
+		if ( get_property( "questG04Nemesis" ) == "finished" ) break;
 		if ( !handling_choice() && choice_follows_fight() ) page = visit_url( "choice.php" );
+		if ( !handling_choice() && current_round() == 0 && page.contains_text( "fight.php" ) ) page = visit_url( "fight.php" );
+		fight_diag( "Nemesis, step " + i + " (" + get_property( "questG04Nemesis" ) + ")", page );
 		if ( handling_choice() ) page = run_choice( 1 );
-		else if ( current_round() > 0 || page.contains_text( "fight.php" ) )
+		else if ( current_round() > 0 )
 		{
 			if ( my_class() == $class[ Pastamancer ] && last_monster() == $monster[ Spaghetti Demon ] )
 				page = noodle_the_demon( page.contains_text( "fight.php" ) ? page : visit_url( "fight.php" ) );
-			else page = run_combat();
+			else page = fight_through( "Nemesis, " + last_monster(), page );
+		}
+		else if ( reentries < 2 && have_effect( $effect[ Beaten Up ] ) == 0 )
+		{
+			reentries += 1;
+			page = visit_url( "volcanoisland.php?action=tniat" );
+			if ( page.contains_text( "fiendish final puzzle" ) || page.contains_text( "volcanomaze" ) ) page = step_to_goal();
 		}
 		else break;
-		if ( get_property( "questG04Nemesis" ) == "finished" ) break;
 	}
 	if ( get_property( "questG04Nemesis" ) == "finished" )
 		return vprint( "You defeated your Nemesis! Don't forget to visit your guild.", "green", 1 );

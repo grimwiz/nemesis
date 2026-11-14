@@ -2611,6 +2611,42 @@ boolean nemesis_Accordion_Thief()
 //	 All Classes	//
 //------------------//
 
+// run_combat() only fights when KoLmafia knows a fight is under way; otherwise it hands back the last page at once.
+// In run 107 the Volcano Maze loop below then asked for the same hellseal guardian 4,300 times without spending a
+// turn. So each fight here prints what KoLmafia sees, gets a second try through fight.php, and the loops stop after
+// three fights in a row that spend no turn.
+int stalled_fights = 0;
+
+void fight_diag( string when, string page )
+{
+	print( "[nemesis] " + when + ": round " + current_round() + ", turn " + my_turncount() + ", " + get_property( "battleAction" )
+		+ " (" + get_property( "customCombatScript" ) + "), page " + length( page ) + " chars"
+		+ ( page.contains_text( "fight.php" ) ? ", fight form" : "" ) + ( page.contains_text( "WINWINWIN" ) ? ", won" : "" )
+		+ ( page.contains_text( "choice.php" ) ? ", choice" : "" ), "blue" );
+}
+
+// Fights the fight that page started. False once three fights in a row have spent no turn.
+boolean fight_here( string where, string page )
+{
+	int turns = my_turncount();
+	fight_diag( where + ", before", page );
+	page = run_combat();
+	fight_diag( where + ", after run_combat", page );
+	if ( my_turncount() == turns && !page.contains_text( "WINWINWIN" ) )
+	{
+		page = visit_url( "fight.php" );
+		fight_diag( where + ", fight.php", page );
+		if ( page.contains_text( "fight.php" ) )
+		{
+			page = run_combat();
+			fight_diag( where + ", after second run_combat", page );
+		}
+	}
+	if ( my_turncount() > turns || page.contains_text( "WINWINWIN" ) ) stalled_fights = 0;
+	else stalled_fights += 1;
+	return stalled_fights < 3;
+}
+
 boolean openLair()
 {
 	if ( my_adventures() == 0 ) return vprint( "Out of adventures.",-1 );
@@ -2637,7 +2673,8 @@ boolean openLair()
 
 		if ( contains_text( response , "Combat" ) )
 		{
-			run_combat();
+			if ( !fight_here( "Nemesis' Lair door", response ) )
+				return vprint( "Three fights at the Nemesis' Lair spent no turn (see the [nemesis] lines above), stopping.", -1 );
 			foreach i, mon in get_monsters( $location[The Nemesis' Lair] )
 			{
 				if ( mon == last_monster() ) unlocked = true ;
@@ -2699,7 +2736,8 @@ boolean nemesisLair()
 		string response = visit_url( "volcanoisland.php?action=tniat" );
 		if ( contains_text( response , "Combat" ) )
 		{
-			run_combat();
+			if ( !fight_here( "Volcano Maze guardian", response ) )
+				return vprint( "Three fights at the Nemesis' Lair spent no turn (see the [nemesis] lines above), stopping.", -1 );
 		}
 		else break;
 	}
